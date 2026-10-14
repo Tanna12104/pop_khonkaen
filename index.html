@@ -1,0 +1,1737 @@
+<!DOCTYPE html>
+<html lang="th" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>POP KHONKAEN - ศึกจิ้มสะสมคะแนนโรงเรียนขอนแก่น</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Kanit -->
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        kanit: ['Kanit', 'sans-serif'],
+                    },
+                    animation: {
+                        'bounce-short': 'bounce 0.4s ease-in-out infinite',
+                        'float-chat': 'floatChat 4s ease-out forwards',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Kanit', sans-serif;
+            touch-action: manipulation;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            overflow-x: hidden;
+        }
+        .pop-btn {
+            touch-action: none;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            transition: transform 0.02s ease, box-shadow 0.02s ease;
+            box-shadow: 0 10px 0 #991b1b, 0 15px 20px -5px rgba(0, 0, 0, 0.5);
+        }
+        .pop-btn:active, .pop-btn.pressed {
+            transform: translateY(6px) scale(0.97);
+            box-shadow: 0 4px 0 #991b1b, 0 8px 10px -3px rgba(0, 0, 0, 0.4);
+        }
+        @keyframes floatUpFromTouch {
+            0% { opacity: 1; transform: translate(-50%, -50%) scale(0.6); }
+            50% { opacity: 1; transform: translate(-50%, -90px) scale(1.15); }
+            100% { opacity: 0; transform: translate(-50%, -150px) scale(1); }
+        }
+        .floating-effect-item {
+            position: fixed;
+            pointer-events: none;
+            animation: floatUpFromTouch 0.8s ease-out forwards;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        @keyframes floatChat {
+            0% { opacity: 0; transform: translateY(20px) scale(0.9); }
+            15% { opacity: 0.85; transform: translateY(0) scale(1); }
+            85% { opacity: 0.85; transform: translateY(-60px) scale(1); }
+            100% { opacity: 0; transform: translateY(-100px) scale(0.95); }
+        }
+        .floating-chat-bubble {
+            position: fixed;
+            pointer-events: none;
+            animation: floatChat 4s ease-out forwards;
+            z-index: 9998;
+        }
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.25);
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-950 via-indigo-950 to-purple-950 text-white min-h-full flex flex-col selection:bg-red-500 selection:text-white">
+
+    <!-- MANDATORY WELCOME & SCHOOL SELECTION MODAL -->
+    <div id="mandatory-welcome-modal" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-xl flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-white/20 rounded-3xl max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            <div class="p-5 border-b border-white/10 text-center bg-gradient-to-r from-red-600/20 via-purple-600/20 to-indigo-600/20">
+                <div class="w-14 h-14 bg-gradient-to-r from-red-500 to-amber-500 text-white rounded-2xl flex items-center justify-center font-black text-xl mx-auto shadow-lg mb-2">
+                    KK
+                </div>
+                <h2 class="text-xl font-black text-white tracking-wide">ยินดีต้อนรับสู่ POP KHONKAEN</h2>
+                <p class="text-xs text-gray-300 mt-1">กรุณาเลือกโรงเรียนของคุณเพื่อเริ่มต้นจิ้มสะสมคะแนน (เลือกแล้วจะไม่สามารถเปลี่ยนได้)</p>
+            </div>
+            
+            <div class="p-3 border-b border-white/10 bg-black/30 space-y-2">
+                <div class="relative">
+                    <i class="fa-solid fa-search absolute left-4 top-3 text-gray-400 text-xs"></i>
+                    <input type="text" id="welcome-modal-search" oninput="filterWelcomeSchoolList()" placeholder="พิมพ์ค้นหาชื่อโรงเรียน..." class="w-full bg-black/60 border border-white/15 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-red-500 transition">
+                </div>
+                <div class="flex gap-2 pt-1">
+                    <input type="text" id="welcome-new-school-input" placeholder="ไม่พบโรงเรียน? พิมพ์ชื่อเพิ่มเองที่นี่..." class="flex-1 bg-black/50 border border-amber-500/30 rounded-xl px-3 py-1.5 text-xs text-white placeholder-gray-400 focus:outline-none focus:border-amber-500">
+                    <button onclick="addNewSchoolFromWelcome()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 px-3.5 py-1.5 rounded-xl text-xs font-bold transition shadow-md">เพิ่มโรงเรียน</button>
+                </div>
+            </div>
+
+            <div id="welcome-school-list" class="p-3 overflow-y-auto space-y-2 flex-1 max-h-[40vh] custom-scrollbar"></div>
+
+            <div class="p-4 border-t border-white/10 bg-black/40 flex flex-col items-center space-y-2.5">
+                <div class="text-center">
+                    <span class="text-[11px] text-gray-400">โรงเรียนที่คุณเลือก:</span>
+                    <p id="welcome-selected-preview" class="text-xs font-bold text-amber-400">ยังไม่ได้เลือกโรงเรียน</p>
+                </div>
+                <button id="confirm-school-btn" onclick="confirmAndEnterApp()" disabled class="w-full py-3 rounded-2xl font-black text-xs transition shadow-lg bg-gray-700 text-gray-400 cursor-not-allowed">
+                    กดยืนยันเข้าสู่เว็บไซต์
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SUCCESS NOTIFICATION MODAL -->
+    <div id="success-popup-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4">
+        <div class="bg-slate-900 border border-emerald-500/40 rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl space-y-4">
+            <div class="w-14 h-14 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full flex items-center justify-center mx-auto text-2xl shadow-lg">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
+            <div>
+                <h3 class="text-lg font-black text-white">ยืนยันสำเร็จ!</h3>
+                <p id="success-popup-school-name" class="text-xs text-amber-300 font-bold mt-1">โรงเรียนของคุณถูกบันทึกเรียบร้อย</p>
+            </div>
+            <button onclick="closeSuccessPopup()" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white py-2.5 rounded-xl font-black text-xs shadow-lg shadow-emerald-600/30 transition">
+                ลุยกันเลย!
+            </button>
+        </div>
+    </div>
+
+    <!-- USER PROFILE MODAL -->
+    <div id="profile-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4">
+        <div class="bg-slate-900 border border-pink-500/40 rounded-3xl max-w-md w-full p-5 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between pb-2.5 border-b border-white/10">
+                <h3 class="font-black text-sm text-white flex items-center space-x-2">
+                    <i class="fa-solid fa-user-pen text-pink-400"></i>
+                    <span>ตั้งค่าโปรไฟล์และสเตตัสของคุณ</span>
+                </h3>
+                <button onclick="closeProfileModal()" class="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-gray-300 transition">
+                    <i class="fa-solid fa-xmark text-xs"></i>
+                </button>
+            </div>
+            <div class="space-y-4 text-xs text-gray-300">
+                <div class="flex flex-col items-center space-y-2">
+                    <img id="profile-preview-img" src="" class="w-20 h-20 rounded-full object-cover border-4 border-pink-500 shadow-xl bg-black">
+                    <span class="text-[10px] text-pink-300 font-bold">รูปโปรไฟล์ปัจจุบันของคุณ</span>
+                </div>
+                <div class="space-y-1.5">
+                    <label class="block font-semibold text-gray-300">ชื่อผู้ใช้งาน (Display Name)</label>
+                    <input type="text" id="profile-name-input" placeholder="พิมพ์ชื่อของคุณ..." class="w-full bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-pink-500 font-bold">
+                </div>
+                <div class="space-y-1.5">
+                    <label class="block font-semibold text-gray-300">ข้อความสเตตัส / ไบโอ (Bio / Status)</label>
+                    <input type="text" id="profile-bio-input" placeholder="พิมพ์สเตตัสเท่ๆ ไว้โชว์คนอื่น..." class="w-full bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-pink-500">
+                </div>
+                <div class="space-y-1.5">
+                    <label class="block font-semibold text-gray-300">อัปโหลดรูปโปรไฟล์จากอัลบั้มมือถือ</label>
+                    <input type="file" id="profile-file-input" accept="image/*" class="w-full bg-black/50 border border-white/15 rounded-xl p-2 text-xs text-white file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-pink-500 file:text-white cursor-pointer">
+                </div>
+                <div class="text-center font-bold text-gray-500">- หรือ -</div>
+                <div class="space-y-1.5">
+                    <label class="block font-semibold text-gray-300">วางลิงก์รูปภาพโปรไฟล์ (Image URL)</label>
+                    <input type="text" id="profile-url-input" placeholder="https://example.com/avatar.png" class="w-full bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-pink-500">
+                </div>
+            </div>
+            <div class="flex space-x-2 pt-2">
+                <button onclick="closeProfileModal()" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-xl font-bold text-xs transition">ยกเลิก</button>
+                <button onclick="saveUserProfile()" class="flex-1 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white py-2 rounded-xl font-black text-xs transition shadow-lg shadow-pink-600/30">บันทึกโปรไฟล์</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- VIEW OTHER USER PROFILE MODAL -->
+    <div id="view-profile-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4">
+        <div class="bg-slate-900 border border-purple-500/40 rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl space-y-4">
+            <div class="flex justify-end">
+                <button onclick="closeViewProfileModal()" class="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-gray-300 transition">
+                    <i class="fa-solid fa-xmark text-xs"></i>
+                </button>
+            </div>
+            <div class="flex flex-col items-center space-y-3 -mt-2">
+                <img id="view-profile-avatar" src="" class="w-24 h-24 rounded-full object-cover border-4 border-purple-500 shadow-2xl bg-black">
+                <div>
+                    <h3 id="view-profile-name" class="text-base font-black text-white">ชื่อผู้ใช้</h3>
+                    <p id="view-profile-bio" class="text-xs text-purple-300 mt-2 bg-purple-950/60 border border-purple-500/30 px-3 py-2 rounded-xl italic">"สเตตัสผู้ใช้งาน"</p>
+                </div>
+            </div>
+            <button onclick="closeViewProfileModal()" class="w-full bg-purple-600 hover:bg-purple-500 text-white py-2.5 rounded-xl font-black text-xs transition shadow-lg shadow-purple-600/30">ปิดหน้าต่าง</button>
+        </div>
+    </div>
+
+    <!-- SCHOOL LOGO CUSTOMIZER MODAL -->
+    <div id="logo-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4">
+        <div class="bg-slate-900 border border-amber-500/30 rounded-3xl max-w-md w-full p-5 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between pb-2.5 border-b border-white/10">
+                <h3 class="font-black text-sm text-white flex items-center space-x-2">
+                    <i class="fa-solid fa-image text-amber-400"></i>
+                    <span>เปลี่ยนตราสัญลักษณ์โรงเรียนของคุณ</span>
+                </h3>
+                <button onclick="closeLogoModal()" class="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-gray-300 transition">
+                    <i class="fa-solid fa-xmark text-xs"></i>
+                </button>
+            </div>
+            <div class="space-y-3 text-xs text-gray-300">
+                <p>อัปเดตตราโรงเรียนของคุณ (เฉพาะตัวแทนโรงเรียนที่คุณสังกัด)</p>
+                <div class="space-y-1.5">
+                    <label class="block font-semibold text-gray-300">อัปโหลดไฟล์รูปภาพตราโรงเรียน</label>
+                    <input type="file" id="logo-file-input" accept="image/*" class="w-full bg-black/50 border border-white/15 rounded-xl p-2 text-xs text-white file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-amber-500 file:text-slate-950 cursor-pointer">
+                </div>
+                <div class="text-center font-bold text-gray-500">- หรือ -</div>
+                <div class="space-y-1.5">
+                    <label class="block font-semibold text-gray-300">วางลิงก์รูปภาพ (Image URL)</label>
+                    <input type="text" id="logo-url-input" placeholder="https://example.com/logo.png" class="w-full bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-amber-500">
+                </div>
+            </div>
+            <div class="flex space-x-2 pt-2">
+                <button onclick="closeLogoModal()" class="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-xl font-bold text-xs transition">ยกเลิก</button>
+                <button onclick="saveSchoolLogo()" class="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 py-2 rounded-xl font-black text-xs transition">บันทึก</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CUSTOM POP EFFECT IMAGE MODAL -->
+    <div id="pop-effect-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4">
+        <div class="bg-slate-900 border border-red-500/30 rounded-3xl max-w-md w-full p-5 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between pb-2.5 border-b border-white/10">
+                <h3 class="font-black text-sm text-white flex items-center space-x-2">
+                    <i class="fa-solid fa-face-smile text-red-400"></i>
+                    <span>ตั้งค่ารูปเอฟเฟกต์ตอนกดปุ่ม POP</span>
+                </h3>
+                <button onclick="closePopEffectModal()" class="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-gray-300 transition">
+                    <i class="fa-solid fa-xmark text-xs"></i>
+                </button>
+            </div>
+            <div class="space-y-3 text-xs text-gray-300">
+                <p>เลือกรูปภาพส่วนตัวหรือมีมของคุณ เพื่อให้เด้งขึ้นมาพร้อมคะแนน +1 ทุกครั้งที่กดปุ่ม POP</p>
+                <div class="space-y-1.5">
+                    <label class="block font-semibold text-gray-300">อัปโหลดรูปภาพของคุณ</label>
+                    <input type="file" id="pop-effect-file-input" accept="image/*" class="w-full bg-black/50 border border-white/15 rounded-xl p-2 text-xs text-white file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-red-500 file:text-white cursor-pointer">
+                </div>
+                <div class="text-center font-bold text-gray-500">- หรือ -</div>
+                <div class="space-y-1.5">
+                    <label class="block font-semibold text-gray-300">วางลิงก์รูปภาพ (Image URL)</label>
+                    <input type="text" id="pop-effect-url-input" placeholder="https://example.com/my-face.png" class="w-full bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-red-500">
+                </div>
+            </div>
+            <div class="flex space-x-2 pt-2">
+                <button onclick="resetPopEffectImage()" class="bg-white/10 hover:bg-white/20 px-3 py-2 rounded-xl font-bold text-xs transition text-gray-300">ใช้รูปเริ่มต้น</button>
+                <button onclick="savePopEffectImage()" class="flex-1 bg-red-600 hover:bg-red-500 text-white py-2 rounded-xl font-black text-xs transition shadow-lg shadow-red-600/30">บันทึกรูปเอฟเฟกต์</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- HEADER -->
+    <header class="bg-black/40 backdrop-blur-md border-b border-white/10 sticky top-0 z-40">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="bg-gradient-to-r from-red-500 to-amber-500 text-white p-2 rounded-2xl shadow-lg flex items-center justify-center font-black text-base w-11 h-11 flex-shrink-0">
+                    KK
+                </div>
+                <div>
+                    <h1 class="text-base sm:text-lg font-black tracking-wider bg-gradient-to-r from-red-400 via-amber-300 to-yellow-400 bg-clip-text text-transparent">POP KHONKAEN</h1>
+                    <p class="text-[11px] text-gray-300 font-medium">ศึกจิ้มสะสมคะแนนโรงเรียนขอนแก่น</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-2 flex-shrink-0">
+                <button onclick="openProfileModal()" class="bg-pink-600/30 hover:bg-pink-600/50 px-3 py-1.5 rounded-2xl text-pink-300 transition shadow-md border border-pink-500/30 flex items-center space-x-2 text-xs font-bold whitespace-nowrap" title="โปรไฟล์ของฉัน">
+                    <img id="header-avatar-img" src="" class="w-6 h-6 rounded-full object-cover border border-pink-400 flex-shrink-0">
+                    <span id="header-username-text" class="max-w-[100px] truncate">โปรไฟล์</span>
+                </button>
+                <button onclick="openSetupModal()" class="bg-white/10 hover:bg-white/20 p-2.5 rounded-2xl text-amber-400 transition shadow-md border border-white/10 flex-shrink-0" title="ตั้งค่า Database">
+                    <i class="fa-solid fa-database text-sm"></i>
+                </button>
+                <button onclick="openAdminModal()" class="bg-indigo-600/30 hover:bg-indigo-600/50 p-2.5 rounded-2xl text-indigo-300 transition shadow-md border border-indigo-500/30 flex-shrink-0" title="แอดมิน">
+                    <i class="fa-solid fa-lock text-sm"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 max-w-6xl w-full mx-auto p-3 sm:p-5 flex flex-col space-y-5 items-stretch">
+        
+        <!-- COMPACT DASHBOARD LIST (Modified: Removed bar, smaller size, showing school name + live score) -->
+        <div class="w-full">
+            <div class="bg-slate-900/80 backdrop-blur-xl border border-white/15 rounded-3xl p-3 sm:p-3.5 shadow-2xl flex flex-col relative overflow-hidden">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-white/10 mb-2 gap-2">
+                    <div class="flex items-center space-x-2">
+                        <div class="bg-gradient-to-r from-pink-500 to-amber-500 text-white p-1 rounded-xl shadow-md">
+                            <i class="fa-solid fa-trophy text-xs"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-black text-xs sm:text-sm text-white tracking-wide">REALTIME LEADERBOARD</h3>
+                            <p id="dashboard-average-text" class="text-[9px] text-amber-300 font-bold">AVERAGE SCORE: 0</p>
+                        </div>
+                    </div>
+                    <div class="relative flex-1 sm:w-48">
+                        <i class="fa-solid fa-search absolute left-3 top-2 text-gray-400 text-[10px]"></i>
+                        <input type="text" id="leaderboard-search" oninput="filterLeaderboard()" placeholder="ค้นหาชื่อโรงเรียน..." class="w-full bg-black/50 border border-white/15 rounded-xl pl-8 pr-3 py-1 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-red-500 transition">
+                    </div>
+                </div>
+
+                <!-- ย่อขนาดความสูงให้เล็กลง แสดงรายชื่อและคะแนนสดๆ แบบไม่สิ้นสุด -->
+                <div id="dashboard-bars-container" class="max-h-[160px] overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+        </div>
+
+        <!-- INTERACTIVE SECTION & SELECTED SCHOOL STATS -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+            
+            <!-- Left: Selected School Card & Giant POP Button -->
+            <div class="lg:col-span-6 flex flex-col space-y-5">
+                <div class="bg-slate-900/80 backdrop-blur-xl border border-white/15 rounded-3xl p-5 shadow-2xl flex flex-col space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3 truncate">
+                            <img id="selected-school-logo" src="" class="w-12 h-12 rounded-2xl bg-white/10 p-1 object-contain border border-white/20 shadow-md flex-shrink-0">
+                            <div class="truncate">
+                                <span class="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">โรงเรียนที่คุณเลือก (ล็อกถาวร)</span>
+                                <h2 id="card-selected-school-name" class="text-base sm:text-lg font-black text-white mt-1 truncate">กำลังโหลด...</h2>
+                            </div>
+                        </div>
+                        <button onclick="openLogoModal()" class="bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 px-3 py-1.5 rounded-xl text-xs font-bold border border-amber-500/30 transition flex items-center space-x-1 flex-shrink-0">
+                            <i class="fa-solid fa-pen"></i>
+                            <span>เปลี่ยนตรา</span>
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 pt-2">
+                        <div class="bg-black/40 border border-white/10 rounded-2xl p-3.5 text-center">
+                            <p class="text-[11px] text-gray-400">คะแนนสะสมของโรงเรียน</p>
+                            <p id="card-school-score" class="text-2xl font-black text-amber-400 mt-0.5">0</p>
+                        </div>
+                        <div class="bg-black/40 border border-white/10 rounded-2xl p-3.5 text-center">
+                            <p class="text-[11px] text-gray-400">อันดับในจังหวัด</p>
+                            <p id="card-school-rank" class="text-2xl font-black text-indigo-400 mt-0.5">#--</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Giant POP Button Area -->
+                <div class="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl flex flex-col items-center justify-center relative overflow-hidden">
+                    <div class="text-center mb-4 z-10">
+                        <p class="text-xs font-medium text-gray-300">คะแนนที่คุณจิ้มให้โรงเรียนนี้ (เซสชันนี้)</p>
+                        <p id="personal-clicks" class="text-4xl sm:text-5xl font-black text-white mt-0.5 tracking-tight">0</p>
+                    </div>
+
+                    <div class="relative z-10 my-2 flex items-center justify-center">
+                        <div id="pop-target" class="w-56 h-56 sm:w-64 sm:h-64 rounded-full bg-gradient-to-br from-red-500 via-rose-600 to-amber-600 p-2 shadow-2xl pop-btn cursor-pointer flex items-center justify-center select-none relative group">
+                            <div class="absolute inset-2 rounded-full bg-gradient-to-tr from-black/20 to-white/25 pointer-events-none"></div>
+                            <div class="w-full h-full rounded-full bg-gradient-to-br from-red-600 to-rose-700 flex flex-col items-center justify-center text-white border-4 border-white/20 relative overflow-hidden group-hover:border-white/40 transition">
+                                <i id="pop-icon" class="fa-solid fa-hand-pointer text-5xl sm:text-6xl mb-1.5 drop-shadow-lg transition transform group-hover:scale-110"></i>
+                                <span class="text-2xl sm:text-3xl font-black tracking-wider uppercase drop-shadow-md">POP!</span>
+                                <span class="text-[10px] font-bold text-amber-200 mt-0.5 uppercase tracking-widest bg-black/30 px-2.5 py-0.5 rounded-full">บันทึกข้อมูลถาวร 100%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="openPopEffectModal()" class="mt-4 bg-red-600/20 hover:bg-red-600/40 text-red-300 px-3 py-1.5 rounded-xl text-xs font-bold border border-red-500/30 transition flex items-center space-x-1.5">
+                        <i class="fa-solid fa-face-smile"></i>
+                        <span>ตั้งค่ารูปเอฟเฟกต์ตอนกด POP</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Right: Podium & Stand Ranking Section -->
+            <div class="lg:col-span-6 flex flex-col space-y-5">
+                <div class="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-4 shadow-2xl flex flex-col h-[520px] relative overflow-hidden">
+                    <div class="flex items-center space-x-2 pb-3 border-b border-white/10 mb-3 flex-shrink-0">
+                        <div class="bg-amber-500/20 text-amber-400 p-1.5 rounded-xl">
+                            <i class="fa-solid fa-trophy text-base"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-black text-sm sm:text-base text-white">แท่นยืนอันดับโรงเรียน</h3>
+                            <p class="text-[11px] text-gray-400">อันดับ 1 - 3 สูงสุดในจังหวัดขอนแก่น พร้อมผู้สนับสนุนสูงสุด</p>
+                        </div>
+                    </div>
+
+                    <div id="podium-container" class="grid grid-cols-3 gap-2 pt-1 pb-3 items-end flex-shrink-0">
+                        <!-- Populated dynamically -->
+                    </div>
+
+                    <div class="flex-1 overflow-y-auto space-y-1.5 pr-1 custom-scrollbar min-h-0" id="bottom-ranking-preview">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- FLOATING CHAT BUTTON & WINDOW (Bottom-Right) -->
+    <div class="fixed bottom-5 right-5 z-40 flex flex-col items-end">
+        <button onclick="toggleFloatingChat()" class="bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white w-14 h-14 rounded-full shadow-2xl flex items-center justify-center text-xl transition transform hover:scale-105 border-2 border-pink-400/50 relative group">
+            <i class="fa-solid fa-comments"></i>
+            <span class="absolute -top-1 -right-1 w-4 h-4 bg-emerald-400 rounded-full border-2 border-slate-950 animate-pulse"></span>
+        </button>
+
+        <div id="floating-chat-window" class="hidden bg-slate-900/95 backdrop-blur-2xl border border-pink-500/40 rounded-3xl w-80 sm:w-96 h-[420px] shadow-2xl flex flex-col overflow-hidden mb-3 transition-all duration-300">
+            <div class="p-3.5 bg-gradient-to-r from-pink-600/30 to-purple-600/30 border-b border-white/10 flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <div class="w-3 h-3 rounded-full bg-emerald-400 animate-pulse"></div>
+                    <h3 class="font-black text-xs text-white tracking-wide">ห้องแชทโลกเรียลไทม์ (Global Chat)</h3>
+                </div>
+                <button onclick="toggleFloatingChat()" class="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-gray-300 transition">
+                    <i class="fa-solid fa-xmark text-xs"></i>
+                </button>
+            </div>
+
+            <div id="global-chat-messages" class="flex-1 overflow-y-auto p-3 space-y-2.5 custom-scrollbar bg-black/40">
+                <!-- Populated dynamically -->
+            </div>
+
+            <div class="p-3 border-t border-white/10 bg-black/60 flex gap-2">
+                <input type="text" id="chat-input-msg" onkeydown="if(event.key==='Enter') sendChatMessage()" placeholder="พิมพ์ข้อความทักทาย..." class="flex-1 bg-black/60 border border-white/15 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-pink-500">
+                <button onclick="sendChatMessage()" class="bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white px-3.5 py-2 rounded-xl text-xs font-black transition shadow-lg shadow-pink-600/30 flex items-center space-x-1">
+                    <span>ส่ง</span>
+                    <i class="fa-solid fa-paper-plane text-[10px]"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="bg-black/60 border-t border-white/10 py-5 mt-10 text-center text-[11px] text-gray-400">
+        <div class="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <p>© 2026 POP KHONKAEN. สงวนลิขสิทธิ์ทุกประการ - ศึกศักดิ์ศรีโรงเรียนจังหวัดขอนแก่น</p>
+            <div class="flex items-center space-x-3">
+                <button onclick="openSetupModal()" class="hover:text-white transition">ตั้งค่าระบบ</button>
+                <span>•</span>
+                <button onclick="openAdminModal()" class="hover:text-white transition">ผู้ดูแลระบบ</button>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Supabase Setup Modal -->
+    <div id="setup-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4">
+        <div class="bg-slate-900 border border-white/15 rounded-3xl max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            <div class="p-4 border-b border-white/10 flex items-center justify-between bg-black/20">
+                <h3 class="font-black text-sm text-white flex items-center space-x-2">
+                    <i class="fa-solid fa-database text-amber-400"></i>
+                    <span>ตั้งค่าเชื่อมต่อ Supabase Database</span>
+                </h3>
+                <button onclick="closeSetupModal()" class="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-gray-300 transition">
+                    <i class="fa-solid fa-xmark text-xs"></i>
+                </button>
+            </div>
+            <div class="p-5 overflow-y-auto space-y-4 text-xs custom-scrollbar">
+                <p class="text-gray-300 leading-relaxed">
+                    กรอก <strong class="text-amber-400">Supabase URL</strong> และ <strong class="text-amber-400">Anon Public Key</strong> เพื่อซิงก์คะแนน แชท และโปรไฟล์แบบเรียลไทม์:
+                </p>
+                <div class="space-y-3">
+                    <div>
+                        <label class="block font-semibold text-gray-400 mb-1">Supabase URL</label>
+                        <input type="text" id="input-supabase-url" placeholder="https://xxxxxx.supabase.co" class="w-full bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-amber-500">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-gray-400 mb-1">Supabase Anon Key</label>
+                        <input type="password" id="input-supabase-key" placeholder="eyJhbGciOiJIUzI1NiIsIn..." class="w-full bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-amber-500">
+                    </div>
+                </div>
+            </div>
+            <div class="p-3 border-t border-white/10 bg-black/25 flex items-center justify-between">
+                <button onclick="resetToDemoMode()" class="text-[11px] text-red-400 hover:text-red-300 transition">ใช้โหมดทดสอบ (Local)</button>
+                <div class="space-x-2">
+                    <button onclick="closeSetupModal()" class="bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-xl font-bold text-white transition">ยกเลิก</button>
+                    <button onclick="saveSupabaseConfig()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 px-4 py-1.5 rounded-xl font-bold transition">บันทึก</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Panel Modal -->
+    <div id="admin-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4">
+        <div class="bg-slate-900 border border-white/15 rounded-3xl max-w-xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            <div class="p-4 border-b border-white/10 flex items-center justify-between bg-black/20">
+                <h3 class="font-black text-sm text-white flex items-center space-x-2">
+                    <i class="fa-solid fa-lock text-indigo-400"></i>
+                    <span>ระบบจัดการผู้ดูแลระบบ (Admin Panel)</span>
+                </h3>
+                <button onclick="closeAdminModal()" class="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-gray-300 transition">
+                    <i class="fa-solid fa-xmark text-xs"></i>
+                </button>
+            </div>
+            
+            <div id="admin-login-view" class="p-6 text-center space-y-3">
+                <div class="w-14 h-14 bg-indigo-600/25 border border-indigo-500/30 rounded-2xl flex items-center justify-center mx-auto text-indigo-400 text-xl">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <div>
+                    <h4 class="font-bold text-white text-sm">เข้าสู่ระบบแอดมิน</h4>
+                    <p class="text-[11px] text-gray-400 mt-0.5">ใส่รหัสผ่านแอดมินเพื่อจัดการโรงเรียน</p>
+                </div>
+                <div class="max-w-xs mx-auto space-y-2.5">
+                    <input type="password" id="admin-password-input" placeholder="รหัสผ่าน" class="w-full bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-center text-white text-xs focus:outline-none focus:border-indigo-500">
+                    <button onclick="verifyAdminLogin()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-2 rounded-xl font-bold text-xs shadow-lg shadow-indigo-600/30 transition">เข้าสู่ระบบ</button>
+                </div>
+            </div>
+
+            <div id="admin-dashboard-view" class="p-5 overflow-y-auto space-y-5 hidden flex-1 custom-scrollbar">
+                <div class="flex items-center justify-between bg-black/30 p-3 rounded-2xl border border-white/5">
+                    <div>
+                        <span class="text-[10px] text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">สถานะ: เข้าสู่ระบบแล้ว</span>
+                        <h4 class="font-bold text-xs text-white mt-1.5">เครื่องมือจัดการระบบ</h4>
+                    </div>
+                    <button onclick="logoutAdmin()" class="text-[11px] text-gray-400 hover:text-red-400 transition">ออกจากระบบ</button>
+                </div>
+
+                <div class="bg-white/5 p-3.5 rounded-2xl border border-white/10 space-y-2.5">
+                    <h5 class="font-bold text-xs text-white flex items-center"><i class="fa-solid fa-plus text-red-500 mr-1.5"></i> เพิ่มโรงเรียนใหม่ในขอนแก่น</h5>
+                    <div class="flex gap-2">
+                        <input type="text" id="new-school-name-input" placeholder="ชื่อโรงเรียนจริง..." class="flex-1 bg-black/40 border border-white/15 rounded-xl px-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-red-500">
+                        <button onclick="addNewSchool()" class="bg-red-600 hover:bg-red-500 text-white px-4 py-1.5 rounded-xl text-xs font-bold transition shadow-md shadow-red-600/30">เพิ่ม</button>
+                    </div>
+                </div>
+
+                <div class="space-y-2.5">
+                    <h5 class="font-bold text-xs text-white flex items-center"><i class="fa-solid fa-list text-amber-400 mr-1.5"></i> จัดการรายชื่อโรงเรียนทั้งหมด</h5>
+                    <div id="admin-school-list" class="space-y-2 max-h-52 overflow-y-auto pr-1">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="p-3 border-t border-white/10 bg-black/20 flex justify-end">
+                <button onclick="closeAdminModal()" class="bg-white/10 hover:bg-white/20 px-4 py-1.5 rounded-xl font-bold text-xs text-white transition">ปิดหน้าต่าง</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+    <script>
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playPopSound() {
+            try {
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                
+                const now = audioCtx.currentTime;
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.exponentialRampToValueAtTime(850, now + 0.12);
+
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.12);
+            } catch (e) {}
+        }
+
+        function cleanSchoolName(name) {
+            if (!name) return "";
+            let cleaned = name.trim();
+            cleaned = cleaned.replace(/โรงเรียนบ้านบ้าน+/g, "โรงเรียนบ้าน");
+            cleaned = cleaned.replace(/บ้านบ้าน+/g, "บ้าน");
+            return cleaned;
+        }
+
+        function getDefaultAvatar(name) {
+            let hash = 0;
+            for (let i = 0; i < (name || 'User').length; i++) {
+                hash = (name || 'User').charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const colors = ['#ec4899', '#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#f43f5e'];
+            const bgHex = colors[Math.abs(hash) % colors.length];
+            const initial = (name || 'U').charAt(0).toUpperCase();
+
+            const svgString = `
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+                    <circle cx="50" cy="50" r="48" fill="${bgHex}" stroke="#ffffff" stroke-width="4"/>
+                    <text x="50" y="58" font-family="'Kanit', sans-serif" font-size="40" font-weight="900" fill="#ffffff" text-anchor="middle">${initial}</text>
+                </svg>
+            `;
+            return `data:image/svg+xml;utf8,${encodeURIComponent(svgString)}`;
+        }
+
+        function getDefaultSchoolLogo(schoolName) {
+            const cleanName = cleanSchoolName(schoolName);
+            let initials = "KK";
+            const parts = cleanName.replace("โรงเรียน", "").trim().split(" ");
+            if (parts.length > 0 && parts[0]) {
+                initials = parts[0].substring(0, 2);
+            }
+            
+            let hash = 0;
+            for (let i = 0; i < cleanName.length; i++) {
+                hash = cleanName.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const colors = ['#ec4899', '#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#f43f5e', '#6366f1'];
+            const bgHex = colors[Math.abs(hash) % colors.length];
+
+            const svgString = `
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+                    <defs>
+                        <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="${bgHex}" />
+                            <stop offset="100%" stop-color="#0f172a" />
+                        </linearGradient>
+                    </defs>
+                    <circle cx="50" cy="50" r="48" fill="url(#grad)" stroke="#fbbf24" stroke-width="4"/>
+                    <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="2" stroke-dasharray="4 2"/>
+                    <text x="50" y="58" font-family="'Kanit', sans-serif" font-size="32" font-weight="900" fill="#ffffff" text-anchor="middle">${initials}</text>
+                </svg>
+            `;
+            return `data:image/svg+xml;utf8,${encodeURIComponent(svgString)}`;
+        }
+
+        function getSchoolLogoUrl(school) {
+            if (school && school.logo_url && school.logo_url.trim() !== '') {
+                return school.logo_url;
+            }
+            return getDefaultSchoolLogo(school ? school.name : '');
+        }
+
+        const KHON_KAEN_REAL_SCHOOLS_BASE = [
+            { id: 1, name: "โรงเรียนขอนแก่นวิทยายน", district: "เมืองขอนแก่น" },
+            { id: 2, name: "โรงเรียนแก่นนครวิทยาลัย", district: "เมืองขอนแก่น" },
+            { id: 3, name: "โรงเรียนกัลยาณวัตร", district: "เมืองขอนแก่น" },
+            { id: 4, name: "โรงเรียนขามแก่นนคร", district: "เมืองขอนแก่น" },
+            { id: 5, name: "โรงเรียนสาธิตมหาวิทยาลัยขอนแก่น (ฝ่ายมัธยมศึกษา)", district: "เมืองขอนแก่น" },
+            { id: 6, name: "โรงเรียนสาธิตมหาวิทยาลัยขอนแก่น (ฝ่ายประถม)", district: "เมืองขอนแก่น" },
+            { id: 7, name: "โรงเรียนนครขอนแก่น", district: "เมืองขอนแก่น" },
+            { id: 8, name: "โรงเรียนชุมแพศึกษา", district: "ชุมแพ" },
+            { id: 9, name: "โรงเรียนเมืองพลพิทยาคม", district: "พล" },
+            { id: 10, name: "โรงเรียนน้ำพองศึกษา", district: "น้ำพอง" },
+            { id: 11, name: "โรงเรียนบ้านไผ่", district: "บ้านไผ่" },
+            { id: 12, name: "โรงเรียนแก่นนครวิทยาลัย 2", district: "เมืองขอนแก่น" },
+            { id: 13, name: "โรงเรียนขอนแก่นวิทยายน 2 (สมาน สุเมโธ)", district: "เมืองขอนแก่น" },
+            { id: 14, name: "โรงเรียนเทพศิรินทร์ ขอนแก่น", district: "เมืองขอนแก่น" },
+            { id: 15, name: "โรงเรียนเตรียมอุดมศึกษาพัฒนาการ ขอนแก่น", district: "เมืองขอนแก่น" },
+            { id: 16, name: "โรงเรียนอุบลรัตน์พิทยาคม", district: "อุบลรัตน์" },
+            { id: 17, name: "โรงเรียนกระนวนศึกษา", district: "กระนวน" },
+            { id: 18, name: "โรงเรียนศรีกระนวนวิทยาคม", district: "กระนวน" },
+            { id: 19, name: "โรงเรียนภูเวียงวิทยาคม", district: "ภูเวียง" },
+            { id: 20, name: "โรงเรียนหนองเรือวิทยา", district: "หนองเรือ" },
+            { id: 21, name: "โรงเรียนมัญจาศึกษา", district: "มัญจาคีรี" },
+            { id: 22, name: "โรงเรียนพล", district: "พล" },
+            { id: 23, name: "โรงเรียนเขาสวนกวางวิทยานุกูล", district: "เขาสวนกวาง" },
+            { id: 24, name: "โรงเรียนพระธาตุขามแก่นพิทยาลัย", district: "น้ำพอง" },
+            { id: 25, name: "โรงเรียนสีชมพูศึกษา", district: "สีชมพู" },
+            { id: 26, name: "โรงเรียนหนองสองห้องวิทยา", district: "หนองสองห้อง" },
+            { id: 27, name: "โรงเรียนชนบทศึกษา", district: "ชนบท" },
+            { id: 28, name: "โรงเรียนฝางวิทยายน", district: "บ้านฝาง" },
+            { id: 29, name: "โรงเรียนพระยืนวิทยาคาร", district: "พระยืน" },
+            { id: 30, name: "โรงเรียนซำสูงพิทยาคม", district: "ซำสูง" },
+            { id: 31, name: "โรงเรียนโคกโพธิ์ไชยศึกษา", district: "โคกโพธิ์ไชย" },
+            { id: 32, name: "โรงเรียนหนองนาคำวิทยาคม", district: "หนองนาคำ" },
+            { id: 33, name: "โรงเรียนเวียงเก่าวิทยาคม", district: "เวียงเก่า" },
+            { id: 34, name: "โรงเรียนแวงน้อยศึกษา", district: "แวงน้อย" },
+            { id: 35, name: "โรงเรียนแวงใหญ่พิทยาคม", district: "แวงใหญ่" },
+            { id: 36, name: "โรงเรียนเปือยน้อยศึกษา", district: "เปือยน้อย" },
+            { id: 37, name: "โรงเรียนโนนศิลาวิทยาคม", district: "โนนศิลา" },
+            { id: 38, name: "โรงเรียนภูผาม่าน", district: "ภูผาม่าน" },
+            { id: 39, name: "โรงเรียนบ้านแฮดศึกษา", district: "บ้านแฮด" },
+            { id: 40, name: "โรงเรียนบ้านแก่นเท่า", district: "บ้านฝาง" },
+            { id: 41, name: "โรงเรียนชุมชนบ้านฝาง", district: "บ้านฝาง" },
+            { id: 42, name: "โรงเรียนบ้านดอนหันวิทยาสาร", district: "เมืองขอนแก่น" },
+            { id: 43, name: "โรงเรียนชุมชนบ้านท่าพระ", district: "เมืองขอนแก่น" },
+            { id: 44, name: "โรงเรียนบ้านโนนตุ่นประชาบำรุง", district: "เมืองขอนแก่น" },
+            { id: 45, name: "โรงเรียนบ้านหนองบัวดีหมี", district: "เมืองขอนแก่น" },
+            { id: 46, name: "โรงเรียนบ้านค้อ", district: "บ้านฝาง" },
+            { id: 47, name: "โรงเรียนบ้านดงกลาง", district: "พระยืน" },
+            { id: 48, name: "โรงเรียนชุมชนบ้านโต้นศรีพิมลวิทยา", district: "พระยืน" },
+            { id: 49, name: "โรงเรียนบ้านเป็ด", district: "เมืองขอนแก่น" },
+            { id: 50, name: "โรงเรียนชุมชนบ้านหนองกุง", district: "น้ำพอง" }
+        ];
+
+        function generateAll1262RealSchools() {
+            let list = [];
+            const villageNames = [
+                "แก่นเท่า", "โนนสมบูรณ์", "ดอนหัน", "ท่าพระ", "โนนตุ่น", "หนองบัวดีหมี", "ค้อ", "ดงกลาง", "บ้านโต้น", "เป็ด", 
+                "หนองกุง", "หนองสองห้อง", "กุดกว้าง", "โคกสี", "ศิลา", "สำราญ", "พระลับ", "บ้านทุ่ม", "สาวะถี",
+                "ดอนช้าง", "บ้านแฮด", "โคกงาม", "โนนฆ้อง", "ขามป้อม", "พระบุ", "หนองแวง", "ป่ามะนาว", "ป่าหวายนั่ง", "หนองบัว"
+            ];
+            const districts = ["เมืองขอนแก่น", "น้ำพอง", "ชุมแพ", "กระนวน", "พล", "บ้านไผ่", "มัญจาคีรี", "ภูเวียง", "หนองเรือ", "สีชมพู", "ชนบท", "บ้านฝาง", "พระยืน", "ซำสูง", "โคกโพธิ์ไชย", "หนองนาคำ", "เวียงเก่า", "แวงน้อย", "แวงใหญ่", "หนองสองห้อง", "อุบลรัตน์", "เปือยน้อย", "โนนศิลา", "ภูผาม่าน", "บ้านแฮด"];
+            
+            KHON_KAEN_REAL_SCHOOLS_BASE.forEach((s, idx) => {
+                list.push({
+                    id: idx + 1,
+                    name: cleanSchoolName(s.name),
+                    district: s.district,
+                    score: 0,
+                    logo_url: "",
+                    top_user_id: "",
+                    top_user_name: "ยังไม่มีผู้สนับสนุน",
+                    top_user_avatar: "",
+                    top_user_bio: ""
+                });
+            });
+
+            for (let i = list.length + 1; i <= 1262; i++) {
+                const dist = districts[i % districts.length];
+                const vill = villageNames[i % villageNames.length];
+                let schoolRealName = i % 3 === 0 ? `โรงเรียนบ้าน${vill} (${dist} ${i})` : (i % 3 === 1 ? `โรงเรียนชุมชนบ้าน${vill} ${i}` : `โรงเรียนอนุบาล${dist} ${i}`);
+
+                list.push({
+                    id: i,
+                    name: cleanSchoolName(schoolRealName),
+                    district: dist,
+                    score: 0,
+                    logo_url: "",
+                    top_user_id: "",
+                    top_user_name: "ยังไม่มีผู้สนับสนุน",
+                    top_user_avatar: "",
+                    top_user_bio: ""
+                });
+            }
+            return list;
+        }
+
+        let schools = [];
+        let chatMessages = [];
+        let selectedSchoolId = localStorage.getItem('pop_kk_selected_school') ? parseInt(localStorage.getItem('pop_kk_selected_school')) : null;
+        let tempSelectedSchoolId = null;
+        let personalClicks = parseInt(localStorage.getItem('pop_kk_personal_clicks') || '0');
+        let customPopEffectImg = localStorage.getItem('pop_kk_custom_effect_img') || '';
+        
+        let userId = localStorage.getItem('pop_kk_user_id') || 'user_' + Math.random().toString(36).substring(2, 9);
+        localStorage.setItem('pop_kk_user_id', userId);
+        let userName = localStorage.getItem('pop_kk_username') || 'GenZ_' + Math.floor(Math.random() * 9000 + 1000);
+        let userAvatar = localStorage.getItem('pop_kk_user_avatar') || getDefaultAvatar(userName);
+        let userBio = localStorage.getItem('pop_kk_user_bio') || 'กำลังใจให้โรงเรียนนี้เต็มร้อย!';
+
+        let supabaseClient = null;
+        let isSupabaseConnected = false;
+        let clickQueue = 0;
+        let isRenderScheduled = false;
+
+        const CONFIG_URL_KEY = 'pop_kk_supabase_url_v3';
+        const CONFIG_KEY_KEY = 'pop_kk_supabase_key_v3';
+
+        window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('personal-clicks').innerText = personalClicks.toLocaleString();
+            updateHeaderProfileUI();
+            
+            const savedUrl = localStorage.getItem(CONFIG_URL_KEY);
+            const savedKey = localStorage.getItem(CONFIG_KEY_KEY);
+
+            if (savedUrl && savedKey) {
+                document.getElementById('input-supabase-url').value = savedUrl;
+                document.getElementById('input-supabase-key').value = savedKey;
+                initSupabase(savedUrl, savedKey);
+            } else {
+                loadLocalPermanentData();
+            }
+
+            const popTarget = document.getElementById('pop-target');
+            if (popTarget) {
+                popTarget.addEventListener('pointerdown', handlePop, { passive: false });
+                popTarget.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+            }
+
+            setInterval(batchSyncClicks, 1000);
+        });
+
+        function updateHeaderProfileUI() {
+            document.getElementById('header-username-text').innerText = userName;
+            document.getElementById('header-avatar-img').src = userAvatar;
+        }
+
+        function loadLocalPermanentData() {
+            schools = generateAll1262RealSchools();
+
+            try {
+                const savedScores = JSON.parse(localStorage.getItem('pop_kk_local_scores_map') || '{}');
+                schools.forEach(s => {
+                    if (savedScores[s.id] !== undefined) {
+                        s.score = savedScores[s.id].score || 0;
+                        s.logo_url = savedScores[s.id].logo_url || '';
+                        s.top_user_name = savedScores[s.id].top_user_name || 'ยังไม่มีผู้สนับสนุน';
+                        s.top_user_avatar = savedScores[s.id].top_user_avatar || '';
+                        s.top_user_bio = savedScores[s.id].top_user_bio || '';
+                    }
+                });
+            } catch(e) {}
+
+            const savedChats = localStorage.getItem('pop_kk_chats_local');
+            if (savedChats) {
+                try { chatMessages = JSON.parse(savedChats); } catch(e){ chatMessages = []; }
+            }
+
+            isSupabaseConnected = false;
+            checkMandatorySchoolSelection();
+            renderChatMessages();
+        }
+
+        function saveLocalSchoolsScores() {
+            try {
+                let scoresMap = {};
+                schools.forEach(s => {
+                    if (s.score > 0 || s.logo_url || s.top_user_name !== 'ยังไม่มีผู้สนับสนุน') {
+                        scoresMap[s.id] = {
+                            score: s.score,
+                            logo_url: s.logo_url,
+                            top_user_name: s.top_user_name,
+                            top_user_avatar: s.top_user_avatar,
+                            top_user_bio: s.top_user_bio
+                        };
+                    }
+                });
+                localStorage.setItem('pop_kk_local_scores_map', JSON.stringify(scoresMap));
+            } catch (err) {
+                console.error("Storage limit reached:", err);
+            }
+        }
+
+        function saveLocalChats() {
+            try {
+                localStorage.setItem('pop_kk_chats_local', JSON.stringify(chatMessages.slice(-30)));
+            } catch(e){}
+        }
+
+        function initSupabase(url, key) {
+            try {
+                if (typeof window.supabase === 'undefined') {
+                    showToast('ไม่พบไลบรารี Supabase', 'error');
+                    loadLocalPermanentData();
+                    return;
+                }
+                supabaseClient = window.supabase.createClient(url, key);
+                isSupabaseConnected = true;
+                localStorage.setItem(CONFIG_URL_KEY, url);
+                localStorage.setItem(CONFIG_KEY_KEY, key);
+                closeSetupModal();
+                showToast('เชื่อมต่อ Realtime สำเร็จ!', 'success');
+
+                fetchSupabaseData(true);
+                subscribeRealtime();
+            } catch (err) {
+                console.error(err);
+                showToast('เชื่อมต่อ Supabase ไม่สำเร็จ ใช้โหมดออฟไลน์แทน', 'error');
+                isSupabaseConnected = false;
+                loadLocalPermanentData();
+            }
+        }
+
+        async function fetchSupabaseData(isInitial = false) {
+            if (!isSupabaseConnected || !supabaseClient) {
+                loadLocalPermanentData();
+                return;
+            }
+            try {
+                const { data: schoolData, error: schoolErr } = await supabaseClient.from('schools').select('*').order('score', { ascending: false });
+                if (!schoolErr && schoolData && schoolData.length > 0) {
+                    schools = schoolData.map(s => ({ ...s, name: cleanSchoolName(s.name) }));
+                } else {
+                    await seedSupabaseSchoolsDirectly();
+                }
+
+                const { data: chatData, error: chatErr } = await supabaseClient.from('chats').select('*').order('created_at', { ascending: true }).limit(50);
+                if (!chatErr && chatData) {
+                    chatMessages = chatData;
+                    renderChatMessages();
+                }
+
+                if (isInitial) {
+                    checkMandatorySchoolSelection();
+                } else {
+                    renderApp();
+                }
+            } catch (err) {
+                console.error('Fetch error:', err);
+                loadLocalPermanentData();
+            }
+        }
+
+        async function seedSupabaseSchoolsDirectly() {
+            if (!isSupabaseConnected || !supabaseClient) return;
+            const allSchools = generateAll1262RealSchools();
+            const batchSize = 200;
+            for (let i = 0; i < allSchools.length; i += batchSize) {
+                const batch = allSchools.slice(i, i + batchSize).map(s => ({
+                    id: s.id,
+                    name: s.name,
+                    district: s.district,
+                    score: 0,
+                    logo_url: s.logo_url || '',
+                    top_user_id: '',
+                    top_user_name: 'ยังไม่มีผู้สนับสนุน',
+                    top_user_avatar: '',
+                    top_user_bio: ''
+                }));
+                await supabaseClient.from('schools').upsert(batch);
+            }
+            fetchSupabaseData(true);
+        }
+
+        function subscribeRealtime() {
+            if (!isSupabaseConnected || !supabaseClient) return;
+            try {
+                supabaseClient
+                    .channel('public:all')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'schools' }, () => {
+                        fetchSupabaseData(false);
+                    })
+                    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chats' }, (payload) => {
+                        if (!chatMessages.some(c => c.id === payload.new.id || (c.created_at === payload.new.created_at && c.message === payload.new.message))) {
+                            chatMessages.push(payload.new);
+                            if (chatMessages.length > 50) chatMessages.shift();
+                            renderChatMessages();
+                            showFloatingChatBubble(payload.new);
+                        }
+                    })
+                    .subscribe();
+            } catch (err) {
+                console.error('Realtime error:', err);
+            }
+        }
+
+        function saveSupabaseConfig() {
+            const url = document.getElementById('input-supabase-url').value.trim();
+            const key = document.getElementById('input-supabase-key').value.trim();
+            if (!url || !key) {
+                showToast('กรุณากรอก URL และ Key ให้ครบถ้วน', 'error');
+                return;
+            }
+            initSupabase(url, key);
+        }
+
+        function resetToDemoMode() {
+            localStorage.removeItem(CONFIG_URL_KEY);
+            localStorage.removeItem(CONFIG_KEY_KEY);
+            supabaseClient = null;
+            isSupabaseConnected = false;
+            loadLocalPermanentData();
+            closeSetupModal();
+            showToast('เปลี่ยนเป็นโหมดบันทึกถาวร (Local)', 'success');
+        }
+
+        function checkMandatorySchoolSelection() {
+            const modal = document.getElementById('mandatory-welcome-modal');
+            if (!selectedSchoolId || !schools.some(s => s.id === selectedSchoolId)) {
+                modal.classList.remove('hidden');
+                renderWelcomeSchoolList();
+            } else {
+                modal.classList.add('hidden');
+                renderApp();
+            }
+        }
+
+        function renderWelcomeSchoolList(filter = '') {
+            const listEl = document.getElementById('welcome-school-list');
+            if (!listEl) return;
+            const filtered = schools.filter(s => cleanSchoolName(s.name).toLowerCase().includes(filter.toLowerCase()));
+
+            let html = '';
+            filtered.forEach((school, idx) => {
+                const isSelected = tempSelectedSchoolId === school.id;
+                const displayName = cleanSchoolName(school.name);
+                const logoUrl = getSchoolLogoUrl(school);
+                html += `
+                    <div onclick="selectWelcomeSchool(${school.id})" class="p-3 rounded-2xl flex items-center justify-between cursor-pointer transition border ${isSelected ? 'bg-pink-500/30 border-pink-500 shadow-lg' : 'bg-black/40 border-white/5 hover:bg-white/10'}">
+                        <div class="flex items-center space-x-2.5 truncate">
+                            <span class="text-xs font-bold text-gray-400 w-7">#${idx + 1}</span>
+                            <img src="${logoUrl}" class="w-6 h-6 object-contain rounded-full bg-white/10 p-0.5 flex-shrink-0 shadow">
+                            <span class="font-bold text-xs text-white truncate">${displayName}</span>
+                        </div>
+                        <div class="w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${isSelected ? 'bg-pink-500 border-pink-500 text-white' : 'border-white/30 text-transparent'}">
+                            <i class="fa-solid fa-check text-[10px]"></i>
+                        </div>
+                    </div>
+                `;
+            });
+            listEl.innerHTML = html;
+        }
+
+        function filterWelcomeSchoolList() {
+            const query = document.getElementById('welcome-modal-search').value;
+            renderWelcomeSchoolList(query);
+        }
+
+        async function addNewSchoolFromWelcome() {
+            const inputEl = document.getElementById('welcome-new-school-input');
+            const name = cleanSchoolName(inputEl.value.trim());
+            if (!name) {
+                showToast('กรุณากรอกชื่อโรงเรียนที่ต้องการเพิ่ม', 'error');
+                return;
+            }
+
+            const newId = schools.length > 0 ? Math.max(...schools.map(s => s.id)) + 1 : 1;
+            const newSchoolObj = {
+                id: newId,
+                name: name,
+                district: 'ขอนแก่น',
+                score: 0,
+                logo_url: '',
+                top_user_id: '',
+                top_user_name: 'ยังไม่มีผู้สนับสนุน',
+                top_user_avatar: '',
+                top_user_bio: ''
+            };
+
+            if (isSupabaseConnected && supabaseClient) {
+                try {
+                    const { data, error } = await supabaseClient.from('schools').insert([newSchoolObj]).select();
+                    if (!error && data && data.length > 0) {
+                        newSchoolObj.id = data[0].id;
+                    }
+                } catch (err) {
+                    console.error(err);
+                }
+            }
+
+            schools.unshift(newSchoolObj);
+            saveLocalSchoolsScores();
+            inputEl.value = '';
+            selectWelcomeSchool(newSchoolObj.id);
+            renderWelcomeSchoolList();
+            showToast('เพิ่มโรงเรียนสำเร็จและเลือกใช้งานทันที', 'success');
+        }
+
+        function selectWelcomeSchool(id) {
+            tempSelectedSchoolId = id;
+            const school = schools.find(s => s.id === id);
+            if (school) {
+                document.getElementById('welcome-selected-preview').innerText = cleanSchoolName(school.name);
+                const btn = document.getElementById('confirm-school-btn');
+                btn.disabled = false;
+                btn.className = "w-full py-3 rounded-2xl font-black text-xs transition shadow-lg bg-gradient-to-r from-pink-600 to-amber-600 hover:from-pink-500 hover:to-amber-500 text-white cursor-pointer shadow-pink-600/30";
+            }
+            renderWelcomeSchoolList(document.getElementById('welcome-modal-search').value);
+        }
+
+        function confirmAndEnterApp() {
+            if (!tempSelectedSchoolId) return;
+            selectedSchoolId = tempSelectedSchoolId;
+            localStorage.setItem('pop_kk_selected_school', selectedSchoolId);
+
+            document.getElementById('mandatory-welcome-modal').classList.add('hidden');
+            
+            const school = schools.find(s => s.id === selectedSchoolId);
+            if (school) {
+                document.getElementById('success-popup-school-name').innerText = `โรงเรียน: ${cleanSchoolName(school.name)}`;
+            }
+            const successModal = document.getElementById('success-popup-modal');
+            successModal.classList.remove('hidden');
+            successModal.classList.add('flex');
+        }
+
+        function closeSuccessPopup() {
+            const successModal = document.getElementById('success-popup-modal');
+            successModal.classList.add('hidden');
+            successModal.classList.remove('flex');
+            renderApp();
+        }
+
+        function openProfileModal() {
+            document.getElementById('profile-name-input').value = userName;
+            document.getElementById('profile-bio-input').value = userBio;
+            document.getElementById('profile-url-input').value = '';
+            document.getElementById('profile-file-input').value = '';
+            document.getElementById('profile-preview-img').src = userAvatar;
+            const modal = document.getElementById('profile-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeProfileModal() {
+            document.getElementById('profile-modal').classList.add('hidden');
+            document.getElementById('profile-modal').classList.remove('flex');
+        }
+
+        async function saveUserProfile() {
+            const nameInput = document.getElementById('profile-name-input').value.trim();
+            const bioInput = document.getElementById('profile-bio-input').value.trim();
+            const urlInput = document.getElementById('profile-url-input').value.trim();
+            const fileInput = document.getElementById('profile-file-input');
+
+            if (nameInput) userName = nameInput;
+            if (bioInput !== undefined) userBio = bioInput;
+            localStorage.setItem('pop_kk_username', userName);
+            localStorage.setItem('pop_kk_user_bio', userBio);
+
+            if (fileInput.files && fileInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    userAvatar = e.target.result;
+                    localStorage.setItem('pop_kk_user_avatar', userAvatar);
+                    finishSavingProfile();
+                };
+                reader.readAsDataURL(fileInput.files[0]);
+            } else if (urlInput !== '') {
+                userAvatar = urlInput;
+                localStorage.setItem('pop_kk_user_avatar', userAvatar);
+                finishSavingProfile();
+            } else {
+                finishSavingProfile();
+            }
+        }
+
+        function finishSavingProfile() {
+            updateHeaderProfileUI();
+            closeProfileModal();
+            showToast('บันทึกโปรไฟล์สำเร็จ!', 'success');
+        }
+
+        function openViewProfileModal(name, avatar, bio) {
+            document.getElementById('view-profile-name').innerText = name || 'ผู้สนับสนุน';
+            document.getElementById('view-profile-avatar').src = avatar && avatar.trim() !== '' ? avatar : getDefaultAvatar(name);
+            document.getElementById('view-profile-bio').innerText = `"${bio && bio.trim() !== '' ? bio : 'ยังไม่ได้ตั้งค่าสเตตัส'}"`;
+            const modal = document.getElementById('view-profile-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeViewProfileModal() {
+            const modal = document.getElementById('view-profile-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function openLogoModal() {
+            document.getElementById('logo-url-input').value = '';
+            document.getElementById('logo-file-input').value = '';
+            const modal = document.getElementById('logo-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeLogoModal() {
+            document.getElementById('logo-modal').classList.add('hidden');
+            document.getElementById('logo-modal').classList.remove('flex');
+        }
+
+        async function saveSchoolLogo() {
+            const urlInput = document.getElementById('logo-url-input').value.trim();
+            const fileInput = document.getElementById('logo-file-input');
+
+            if (fileInput.files && fileInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = async function(e) {
+                    await updateSchoolLogoInDb(e.target.result);
+                };
+                reader.readAsDataURL(fileInput.files[0]);
+            } else if (urlInput !== '') {
+                await updateSchoolLogoInDb(urlInput);
+            } else {
+                showToast('กรุณาอัปโหลดไฟล์รูปภาพหรือใส่ลิงก์', 'error');
+            }
+        }
+
+        async function updateSchoolLogoInDb(logoUrl) {
+            const school = schools.find(s => s.id === selectedSchoolId);
+            if (!school) return;
+            school.logo_url = logoUrl;
+
+            if (isSupabaseConnected && supabaseClient) {
+                try {
+                    await supabaseClient.from('schools').update({ logo_url: logoUrl, updated_at: new Date() }).eq('id', selectedSchoolId);
+                    showToast('อัปเดตตราโรงเรียนสำเร็จ!', 'success');
+                } catch (err) {
+                    showToast('เกิดข้อผิดพลาดในการบันทึก', 'error');
+                }
+            } else {
+                saveLocalSchoolsScores();
+                showToast('อัปเดตตราโรงเรียนสำเร็จ!', 'success');
+            }
+            closeLogoModal();
+            renderApp();
+        }
+
+        function openPopEffectModal() {
+            document.getElementById('pop-effect-url-input').value = '';
+            document.getElementById('pop-effect-file-input').value = '';
+            const modal = document.getElementById('pop-effect-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closePopEffectModal() {
+            const modal = document.getElementById('pop-effect-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function savePopEffectImage() {
+            const urlInput = document.getElementById('pop-effect-url-input').value.trim();
+            const fileInput = document.getElementById('pop-effect-file-input');
+
+            if (fileInput.files && fileInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    customPopEffectImg = e.target.result;
+                    localStorage.setItem('pop_kk_custom_effect_img', customPopEffectImg);
+                    showToast('บันทึกรูปเอฟเฟกต์สำเร็จ!', 'success');
+                    closePopEffectModal();
+                };
+                reader.readAsDataURL(fileInput.files[0]);
+            } else if (urlInput !== '') {
+                customPopEffectImg = urlInput;
+                localStorage.setItem('pop_kk_custom_effect_img', customPopEffectImg);
+                showToast('บันทึกรูปเอฟเฟกต์สำเร็จ!', 'success');
+                closePopEffectModal();
+            } else {
+                showToast('กรุณาเลือกรูปภาพหรือใส่ลิงก์', 'error');
+            }
+        }
+
+        function resetPopEffectImage() {
+            customPopEffectImg = '';
+            localStorage.removeItem('pop_kk_custom_effect_img');
+            showToast('รีเซ็ตเป็นเอฟเฟกต์เริ่มต้นแล้ว', 'success');
+            closePopEffectModal();
+        }
+
+        function handlePop(event) {
+            event.preventDefault();
+            playPopSound();
+
+            personalClicks++;
+            clickQueue++;
+            localStorage.setItem('pop_kk_personal_clicks', personalClicks);
+            document.getElementById('personal-clicks').innerText = personalClicks.toLocaleString();
+
+            const school = schools.find(s => s.id === selectedSchoolId);
+            if (school) {
+                school.score += 1;
+                school.top_user_id = userId;
+                school.top_user_name = userName;
+                school.top_user_avatar = userAvatar;
+                school.top_user_bio = userBio;
+                schools.sort((a, b) => b.score - a.score);
+                saveLocalSchoolsScores();
+
+                if (!isRenderScheduled) {
+                    isRenderScheduled = true;
+                    requestAnimationFrame(() => {
+                        renderRealtimeLeaderboard();
+                        renderPodiumStand();
+                        updateSelectedSchoolCard(school);
+                        isRenderScheduled = false;
+                    });
+                }
+            }
+            createFloatingEffect(event);
+        }
+
+        function createFloatingEffect(event) {
+            const target = document.getElementById('pop-target');
+            const rect = target.getBoundingClientRect();
+            let clientX = event.clientX, clientY = event.clientY;
+
+            if (event.touches && event.touches.length > 0) {
+                clientX = event.touches[0].clientX;
+                clientY = event.touches[0].clientY;
+            }
+            if (!clientX || !clientY) {
+                clientX = rect.left + rect.width / 2;
+                clientY = rect.top + rect.height / 2;
+            }
+
+            const el = document.createElement('div');
+            el.className = 'floating-effect-item';
+            if (customPopEffectImg) {
+                el.innerHTML = `<img src="${customPopEffectImg}" class="w-12 h-12 rounded-full object-cover border-2 border-pink-400 shadow-2xl animate-bounce-short"><span class="text-pink-300 font-black text-xl drop-shadow-md">+1</span>`;
+            } else {
+                el.innerHTML = `<span class="text-pink-300 font-black text-2xl drop-shadow-md">+1</span>`;
+            }
+            el.style.left = `${clientX}px`;
+            el.style.top = `${clientY}px`;
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 800);
+        }
+
+        async function batchSyncClicks() {
+            if (clickQueue <= 0) return;
+            const currentClicks = clickQueue;
+            clickQueue = 0;
+
+            const school = schools.find(s => s.id === selectedSchoolId);
+            if (!school) return;
+
+            if (isSupabaseConnected && supabaseClient) {
+                try {
+                    const { data, error } = await supabaseClient.from('schools').select('score').eq('id', selectedSchoolId).single();
+                    if (!error && data) {
+                        const newScore = data.score + currentClicks;
+                        await supabaseClient.from('schools').update({ 
+                            score: newScore, 
+                            top_user_id: userId,
+                            top_user_name: userName, 
+                            top_user_avatar: userAvatar, 
+                            top_user_bio: userBio,
+                            updated_at: new Date() 
+                        }).eq('id', selectedSchoolId);
+                    }
+                } catch (err) {
+                    console.error('Sync error:', err);
+                }
+            } else {
+                saveLocalSchoolsScores();
+            }
+        }
+
+        function toggleFloatingChat() {
+            const win = document.getElementById('floating-chat-window');
+            win.classList.toggle('hidden');
+        }
+
+        async function sendChatMessage() {
+            const inputEl = document.getElementById('chat-input-msg');
+            const message = inputEl.value.trim();
+            if (!message) return;
+            inputEl.value = '';
+
+            const newMsg = {
+                user_id: userId,
+                username: userName,
+                avatar: userAvatar,
+                message: message,
+                created_at: new Date().toISOString()
+            };
+
+            chatMessages.push(newMsg);
+            if (chatMessages.length > 50) chatMessages.shift();
+            renderChatMessages();
+
+            if (isSupabaseConnected && supabaseClient) {
+                try {
+                    await supabaseClient.from('chats').insert([newMsg]);
+                } catch (err) {
+                    console.error('Chat error:', err);
+                }
+            } else {
+                saveLocalChats();
+            }
+        }
+
+        function renderChatMessages() {
+            const container = document.getElementById('global-chat-messages');
+            if (!container) return;
+            let html = '';
+            chatMessages.slice(-30).forEach(chat => {
+                const avatar = chat.avatar && chat.avatar.trim() !== '' ? chat.avatar : getDefaultAvatar(chat.username);
+                html += `
+                    <div class="flex items-start space-x-2 bg-black/30 p-2 rounded-xl border border-white/5 cursor-pointer hover:bg-white/10 transition" onclick="openViewProfileModal('${chat.username || 'GenZ'}', '${avatar}', '${chat.bio || ''}')">
+                        <img src="${avatar}" class="w-7 h-7 rounded-full object-cover border border-pink-500 flex-shrink-0 mt-0.5">
+                        <div class="flex-1 truncate">
+                            <div class="flex items-center space-x-2">
+                                <span class="font-bold text-xs text-pink-300">${chat.username || 'GenZ'}</span>
+                                <span class="text-[9px] text-gray-500">${new Date(chat.created_at || Date.now()).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                            </div>
+                            <p class="text-xs text-white break-words mt-0.5">${chat.message}</p>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function showFloatingChatBubble(chat) {
+            const bubble = document.createElement('div');
+            bubble.className = 'floating-chat-bubble bg-pink-950/90 border border-pink-500/60 backdrop-blur-md px-3.5 py-2 rounded-2xl shadow-2xl flex items-center space-x-2 text-xs';
+            const avatar = chat.avatar && chat.avatar.trim() !== '' ? chat.avatar : getDefaultAvatar(chat.username);
+            const randomX = Math.random() * (window.innerWidth - 250) + 50;
+            bubble.style.left = `${randomX}px`;
+            bubble.style.bottom = `100px`;
+
+            bubble.innerHTML = `
+                <img src="${avatar}" class="w-6 h-6 rounded-full object-cover border border-pink-400 flex-shrink-0">
+                <div class="truncate max-w-[200px]">
+                    <span class="font-bold text-pink-300 mr-1">${chat.username}:</span>
+                    <span class="text-white">${chat.message}</span>
+                </div>
+            `;
+            document.body.appendChild(bubble);
+            setTimeout(() => bubble.remove(), 4000);
+        }
+
+        function renderApp() {
+            schools.sort((a, b) => b.score - a.score);
+            const selectedSchool = schools.find(s => s.id === selectedSchoolId) || schools[0];
+            if (selectedSchool) {
+                selectedSchoolId = selectedSchool.id;
+                updateSelectedSchoolCard(selectedSchool);
+            }
+            renderRealtimeLeaderboard();
+            renderPodiumStand();
+            renderAdminSchoolsList();
+        }
+
+        function updateSelectedSchoolCard(school) {
+            const displayName = cleanSchoolName(school.name);
+            document.getElementById('card-selected-school-name').innerText = displayName;
+            document.getElementById('card-school-score').innerText = school.score.toLocaleString();
+            const currentRank = schools.findIndex(s => s.id === school.id) + 1;
+            document.getElementById('card-school-rank').innerText = `#${currentRank}`;
+            document.getElementById('selected-school-logo').src = getSchoolLogoUrl(school);
+        }
+
+        // แทนที่หลอดกราฟเดิมด้วยรายการชื่อโรงเรียนและคะแนนสดๆ แบบเรียลไทม์ไม่สิ้นสุด
+        function renderRealtimeLeaderboard(filterText = '') {
+            const container = document.getElementById('dashboard-bars-container');
+            const filtered = schools.filter(s => cleanSchoolName(s.name).toLowerCase().includes(filterText.toLowerCase()));
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="text-center py-4 text-gray-400 text-xs">ไม่พบโรงเรียนที่ค้นหา</div>`;
+                return;
+            }
+
+            const totalScoreSum = schools.reduce((acc, curr) => acc + curr.score, 0);
+            const averageScore = Math.round(totalScoreSum / schools.length);
+            document.getElementById('dashboard-average-text').innerText = `AVERAGE SCORE: ${averageScore.toLocaleString()}`;
+
+            let html = '';
+            filtered.forEach((school) => {
+                const isSelected = school.id === selectedSchoolId;
+                const displayName = cleanSchoolName(school.name);
+                const logoUrl = getSchoolLogoUrl(school);
+                const currentRank = schools.findIndex(s => s.id === school.id) + 1;
+
+                html += `
+                    <div class="flex items-center justify-between py-1.5 px-2.5 rounded-xl transition border ${isSelected ? 'bg-pink-500/20 border-pink-500/60 shadow-lg' : 'bg-black/30 border-white/5 hover:bg-white/5'}">
+                        <div class="flex items-center space-x-2 truncate flex-1">
+                            <span class="text-gray-400 text-xs font-bold w-6 flex-shrink-0">#${currentRank}</span>
+                            <img src="${logoUrl}" class="w-4 h-4 object-contain rounded-full bg-white/10 p-0.5 flex-shrink-0 shadow">
+                            <span class="text-xs truncate ${isSelected ? 'text-pink-300 font-black' : 'text-gray-200 font-bold'}" title="${displayName}">${displayName} ${isSelected ? '⭐' : ''}</span>
+                        </div>
+                        <div class="flex-shrink-0 pl-2">
+                            <span class="text-xs font-black text-amber-400">${school.score.toLocaleString()} คะแนน</span>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function renderPodiumStand() {
+            const podiumContainer = document.getElementById('podium-container');
+            const previewContainer = document.getElementById('bottom-ranking-preview');
+
+            const top1 = schools[0];
+            const top2 = schools[1];
+            const top3 = schools[2];
+
+            let podiumHtml = '';
+            if (top2) {
+                const top2UserAvatar = top2.top_user_avatar && top2.top_user_avatar.trim() !== '' ? top2.top_user_avatar : getDefaultAvatar(top2.top_user_name);
+                podiumHtml += `
+                    <div class="flex flex-col items-center group">
+                        <div class="relative mb-1">
+                            <img src="${getSchoolLogoUrl(top2)}" class="w-8 h-8 sm:w-9 sm:h-9 object-contain rounded-xl bg-slate-300 p-0.5 shadow-lg border border-white/40">
+                            <span class="absolute -top-1.5 -right-1.5 bg-slate-300 text-slate-950 text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow">2</span>
+                        </div>
+                        <p class="text-[10px] font-bold text-white text-center truncate w-full px-0.5">${cleanSchoolName(top2.name)}</p>
+                        <p class="text-[9px] font-black text-amber-400">${top2.score.toLocaleString()}</p>
+                        
+                        <div onclick="openViewProfileModal('${top2.top_user_name || 'ผู้สนับสนุน'}', '${top2UserAvatar}', '${top2.top_user_bio || ''}')" class="flex items-center space-x-1.5 my-1 bg-slate-800/90 px-2.5 py-1 rounded-full border border-slate-500 cursor-pointer hover:bg-slate-700 transition shadow-md">
+                            <img src="${top2UserAvatar}" class="w-6 h-6 rounded-full object-cover border border-slate-400 flex-shrink-0">
+                            <span class="text-[10px] text-gray-200 truncate max-w-[70px] font-bold">${top2.top_user_name || 'ไม่มี'}</span>
+                        </div>
+
+                        <div class="w-full bg-gradient-to-t from-slate-800 via-indigo-900 to-purple-800 h-16 sm:h-20 rounded-t-2xl mt-1 border-t border-purple-400/40 flex items-center justify-center shadow-xl">
+                            <span class="text-xl font-black text-purple-300/40">2</span>
+                        </div>
+                    </div>
+                `;
+            }
+            if (top1) {
+                const top1UserAvatar = top1.top_user_avatar && top1.top_user_avatar.trim() !== '' ? top1.top_user_avatar : getDefaultAvatar(top1.top_user_name);
+                podiumHtml += `
+                    <div class="flex flex-col items-center group -mt-3">
+                        <div class="relative mb-1 animate-bounce-short">
+                            <img src="${getSchoolLogoUrl(top1)}" class="w-10 h-10 sm:w-12 sm:h-12 object-contain rounded-2xl bg-amber-400 p-0.5 shadow-xl border-2 border-amber-300">
+                            <span class="absolute -top-2 -right-2 bg-amber-400 text-slate-950 text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow">1</span>
+                        </div>
+                        <p class="text-[11px] font-black text-amber-300 text-center truncate w-full px-0.5">${cleanSchoolName(top1.name)}</p>
+                        <p class="text-[10px] font-black text-amber-400">${top1.score.toLocaleString()}</p>
+                        
+                        <div onclick="openViewProfileModal('${top1.top_user_name || 'ผู้สนับสนุน'}', '${top1UserAvatar}', '${top1.top_user_bio || ''}')" class="flex items-center space-x-1.5 my-1 bg-amber-950/95 px-3 py-1.5 rounded-full border border-amber-400 cursor-pointer hover:bg-amber-900 transition shadow-lg">
+                            <img src="${top1UserAvatar}" class="w-7 h-7 rounded-full object-cover border-2 border-amber-300 flex-shrink-0">
+                            <span class="text-[10px] text-amber-200 truncate max-w-[75px] font-black">${top1.top_user_name || 'ไม่มี'}</span>
+                        </div>
+
+                        <div class="w-full bg-gradient-to-t from-amber-800 via-rose-700 to-pink-600 h-22 sm:h-28 rounded-t-2xl mt-1 border-t border-amber-300 flex items-center justify-center shadow-2xl">
+                            <span class="text-2xl font-black text-amber-200/50">1</span>
+                        </div>
+                    </div>
+                `;
+            }
+            if (top3) {
+                const top3UserAvatar = top3.top_user_avatar && top3.top_user_avatar.trim() !== '' ? top3.top_user_avatar : getDefaultAvatar(top3.top_user_name);
+                podiumHtml += `
+                    <div class="flex flex-col items-center group">
+                        <div class="relative mb-1">
+                            <img src="${getSchoolLogoUrl(top3)}" class="w-8 h-8 sm:w-9 sm:h-9 object-contain rounded-xl bg-amber-700 p-0.5 shadow-lg border border-white/40">
+                            <span class="absolute -top-1.5 -right-1.5 bg-amber-700 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow">3</span>
+                        </div>
+                        <p class="text-[10px] font-bold text-white text-center truncate w-full px-0.5">${cleanSchoolName(top3.name)}</p>
+                        <p class="text-[9px] font-black text-amber-400">${top3.score.toLocaleString()}</p>
+                        
+                        <div onclick="openViewProfileModal('${top3.top_user_name || 'ผู้สนับสนุน'}', '${top3UserAvatar}', '${top3.top_user_bio || ''}')" class="flex items-center space-x-1.5 my-1 bg-amber-950/80 px-2.5 py-1 rounded-full border border-amber-600 cursor-pointer hover:bg-amber-900 transition shadow-md">
+                            <img src="${top3UserAvatar}" class="w-6 h-6 rounded-full object-cover border border-amber-500 flex-shrink-0">
+                            <span class="text-[10px] text-amber-300 truncate max-w-[70px] font-bold">${top3.top_user_name || 'ไม่มี'}</span>
+                        </div>
+
+                        <div class="w-full bg-gradient-to-t from-amber-950 via-amber-900 to-amber-700 h-14 sm:h-18 rounded-t-2xl mt-1 border-t border-amber-500/40 flex items-center justify-center shadow-xl">
+                            <span class="text-xl font-black text-amber-500/40">3</span>
+                        </div>
+                    </div>
+                `;
+            }
+            podiumContainer.innerHTML = podiumHtml;
+
+            let previewHtml = '';
+            schools.slice(3).forEach((school) => {
+                const actualRank = schools.findIndex(s => s.id === school.id) + 1;
+                const isSelected = school.id === selectedSchoolId;
+                const displayName = cleanSchoolName(school.name);
+                const supAvatar = school.top_user_avatar && school.top_user_avatar.trim() !== '' ? school.top_user_avatar : getDefaultAvatar(school.top_user_name);
+                
+                previewHtml += `
+                    <div class="flex items-center justify-between p-2 rounded-xl transition border ${isSelected ? 'bg-pink-500/20 border-pink-500/50' : 'bg-black/30 border-white/5'}">
+                        <div class="flex items-center space-x-2 truncate">
+                            <span class="text-xs font-bold text-gray-400 w-5 flex-shrink-0">#${actualRank}</span>
+                            <img src="${getSchoolLogoUrl(school)}" class="w-5 h-5 object-contain rounded-full bg-white/10 p-0.5 flex-shrink-0 shadow">
+                            <span class="font-bold text-xs text-white truncate">${displayName} ${isSelected ? '(ของคุณ)' : ''}</span>
+                        </div>
+                        <div class="flex items-center space-x-2 flex-shrink-0">
+                            <div onclick="openViewProfileModal('${school.top_user_name || 'ผู้สนับสนุน'}', '${supAvatar}', '${school.top_user_bio || ''}')" class="flex items-center space-x-1 bg-white/10 px-2 py-0.5 rounded-full cursor-pointer hover:bg-white/20 transition" title="ผู้สนับสนุนสูงสุด">
+                                <img src="${supAvatar}" class="w-4 h-4 rounded-full object-cover">
+                                <span class="text-[9px] text-gray-300 truncate max-w-[50px]">${school.top_user_name || 'ไม่มี'}</span>
+                            </div>
+                            <span class="font-black text-amber-400 text-xs">${school.score.toLocaleString()} คะแนน</span>
+                        </div>
+                    </div>
+                `;
+            });
+            previewContainer.innerHTML = previewHtml;
+        }
+
+        function filterLeaderboard() {
+            const query = document.getElementById('leaderboard-search').value;
+            renderRealtimeLeaderboard(query);
+        }
+
+        function openSetupModal() {
+            document.getElementById('setup-modal').classList.remove('hidden');
+            document.getElementById('setup-modal').classList.add('flex');
+        }
+
+        function closeSetupModal() {
+            document.getElementById('setup-modal').classList.add('hidden');
+            document.getElementById('setup-modal').classList.remove('flex');
+        }
+
+        function openAdminModal() {
+            document.getElementById('admin-modal').classList.remove('hidden');
+            document.getElementById('admin-modal').classList.add('flex');
+        }
+
+        function closeAdminModal() {
+            document.getElementById('admin-modal').classList.add('hidden');
+            document.getElementById('admin-modal').classList.remove('flex');
+        }
+
+        function verifyAdminLogin() {
+            const pass = document.getElementById('admin-password-input').value;
+            if (pass === 'popkk123') {
+                document.getElementById('admin-login-view').classList.add('hidden');
+                document.getElementById('admin-dashboard-view').classList.remove('hidden');
+                renderAdminSchoolsList();
+                showToast('เข้าสู่ระบบแอดมินสำเร็จ', 'success');
+            } else {
+                showToast('รหัสผ่านไม่ถูกต้อง (ค่าเริ่มต้น: popkk123)', 'error');
+            }
+        }
+
+        function logoutAdmin() {
+            document.getElementById('admin-login-view').classList.remove('hidden');
+            document.getElementById('admin-dashboard-view').classList.add('hidden');
+            document.getElementById('admin-password-input').value = '';
+        }
+
+        function renderAdminSchoolsList() {
+            const container = document.getElementById('admin-school-list');
+            let html = '';
+            schools.forEach(school => {
+                const displayName = cleanSchoolName(school.name);
+                html += `
+                    <div class="bg-black/40 border border-white/10 rounded-xl p-2.5 flex items-center justify-between gap-2">
+                        <div class="flex items-center space-x-2.5 truncate flex-1">
+                            <img src="${getSchoolLogoUrl(school)}" class="w-7 h-7 object-contain rounded-full bg-white/10 p-0.5 flex-shrink-0">
+                            <div class="truncate flex-1">
+                                <input type="text" id="admin-name-${school.id}" value="${displayName}" class="w-full bg-black/60 border border-white/20 rounded-lg px-2 py-1 text-xs text-white font-bold focus:outline-none focus:border-indigo-500">
+                                <p class="text-[10px] text-amber-400 mt-0.5">${school.score.toLocaleString()} คะแนน</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-1 flex-shrink-0">
+                            <button onclick="updateSchoolName(${school.id})" class="bg-indigo-600/35 hover:bg-indigo-600/50 text-indigo-300 px-2 py-1 rounded-lg text-[11px] font-medium transition">บันทึก</button>
+                            <button onclick="resetSchoolScore(${school.id})" class="bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 px-2 py-1 rounded-lg text-[11px] font-medium transition">รีเซ็ต</button>
+                            <button onclick="deleteSchool(${school.id})" class="bg-red-500/20 hover:bg-red-500/40 text-red-300 px-2 py-1 rounded-lg text-[11px] font-medium transition">ลบ</button>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        async function updateSchoolName(id) {
+            const inputEl = document.getElementById(`admin-name-${id}`);
+            if (!inputEl) return;
+            const newName = cleanSchoolName(inputEl.value.trim());
+            if (!newName) {
+                showToast('ชื่อโรงเรียนห้ามว่าง', 'error');
+                return;
+            }
+
+            if (isSupabaseConnected && supabaseClient) {
+                try {
+                    await supabaseClient.from('schools').update({ name: newName, updated_at: new Date() }).eq('id', id);
+                    fetchSupabaseData(false);
+                    showToast('แก้ไขชื่อโรงเรียนสำเร็จ', 'success');
+                } catch (err) {
+                    showToast('เกิดข้อผิดพลาด', 'error');
+                }
+            } else {
+                const school = schools.find(s => s.id === id);
+                if (school) {
+                    school.name = newName;
+                    saveLocalSchoolsScores();
+                    renderApp();
+                    showToast('แก้ไขชื่อโรงเรียนสำเร็จ', 'success');
+                }
+            }
+        }
+
+        async function addNewSchool() {
+            const nameInput = document.getElementById('new-school-name-input');
+            const name = cleanSchoolName(nameInput.value.trim());
+            if (!name) {
+                showToast('กรุณากรอกชื่อโรงเรียน', 'error');
+                return;
+            }
+
+            if (isSupabaseConnected && supabaseClient) {
+                try {
+                    await supabaseClient.from('schools').insert([{ name, score: 0, logo_url: '', top_user_id: '', top_user_name: 'ยังไม่มีผู้สนับสนุน', top_user_avatar: '', top_user_bio: '' }]);
+                    nameInput.value = '';
+                    fetchSupabaseData(false);
+                    showToast('เพิ่มโรงเรียนสำเร็จ', 'success');
+                } catch (err) {
+                    showToast('เกิดข้อผิดพลาด', 'error');
+                }
+            } else {
+                const newId = schools.length > 0 ? Math.max(...schools.map(s => s.id)) + 1 : 1;
+                schools.unshift({ id: newId, name, score: 0, logo_url: '', top_user_id: '', top_user_name: 'ยังไม่มีผู้สนับสนุน', top_user_avatar: '', top_user_bio: '' });
+                saveLocalSchoolsScores();
+                nameInput.value = '';
+                renderApp();
+                showToast('เพิ่มโรงเรียนสำเร็จ', 'success');
+            }
+        }
+
+        async function resetSchoolScore(id) {
+            if (isSupabaseConnected && supabaseClient) {
+                try {
+                    await supabaseClient.from('schools').update({ score: 0, top_user_id: '', top_user_name: 'ยังไม่มีผู้สนับสนุน', top_user_avatar: '', top_user_bio: '' }).eq('id', id);
+                    fetchSupabaseData(false);
+                    showToast('รีเซ็ตคะแนนสำเร็จ', 'success');
+                } catch (err) {
+                    showToast('เกิดข้อผิดพลาด', 'error');
+                }
+            } else {
+                const school = schools.find(s => s.id === id);
+                if (school) {
+                    school.score = 0;
+                    school.top_user_id = '';
+                    school.top_user_name = 'ยังไม่มีผู้สนับสนุน';
+                    school.top_user_avatar = '';
+                    school.top_user_bio = '';
+                    saveLocalSchoolsScores();
+                    renderApp();
+                    showToast('รีเซ็ตคะแนนสำเร็จ', 'success');
+                }
+            }
+        }
+
+        async function deleteSchool(id) {
+            if (isSupabaseConnected && supabaseClient) {
+                try {
+                    await supabaseClient.from('schools').delete().eq('id', id);
+                    fetchSupabaseData(false);
+                    showToast('ลบโรงเรียนสำเร็จ', 'success');
+                } catch (err) {
+                    showToast('เกิดข้อผิดพลาด', 'error');
+                }
+            } else {
+                schools = schools.filter(s => s.id !== id);
+                saveLocalSchoolsScores();
+                renderApp();
+                showToast('ลบโรงเรียนสำเร็จ', 'success');
+            }
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `pointer-events-auto px-3.5 py-2.5 rounded-2xl text-xs font-bold shadow-xl border flex items-center space-x-2 animate-in fade-in slide-in-from-bottom-4 duration-300 ${type === 'success' ? 'bg-emerald-950/90 border-emerald-500/50 text-emerald-200' : 'bg-red-950/90 border-red-500/50 text-red-200'}`;
+            const icon = type === 'success' ? 'fa-circle-check text-emerald-400' : 'fa-circle-exclamation text-red-400';
+            toast.innerHTML = `<i class="fa-solid ${icon} text-sm"></i><span>${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(10px)';
+                toast.style.transition = 'all 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
